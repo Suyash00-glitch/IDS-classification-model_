@@ -1,28 +1,36 @@
 import streamlit as st
 import pandas as pd
-from tensorflow.keras.models import load_model
 import joblib
 
-# Load model, scaler, label encoder
-model = load_model("binary_classifier_model.keras")
-scaler = joblib.load("scaler.save")
+# Load model
+model = joblib.load("marketing_model_rf.pkl")
 le = joblib.load("label_encoder.save")
 
-st.title("Binary Response Predictor")
+st.title("Marketing Response Predictor (Random Forest)")
+st.write("Enter customer details:")
 
-age = st.number_input("Age", min_value=18, max_value=100, value=30)
-income = st.number_input("Annual Income (INR)", value=2000000)
-credit = st.number_input("Credit Score", value=650)
-price = st.number_input("Product Price (INR)", value=50000)
+age = st.number_input("Age", 18, 100, 30)
+income = st.number_input("Annual Income (INR)", 10000, 10000000, 500000)
+credit_score = st.number_input("Credit Score", 300, 850, 700)
+product_price = st.number_input("Product Price (INR)", 1000, 1000000, 50000)
 
 if st.button("Predict"):
-    df = pd.DataFrame({
-        'Age':[age],
-        'Annual_Income_INR':[income],
-        'Credit_Score':[credit],
-        'Product_Price_INR':[price]
+    # Optional engineered features
+    affordability = income / product_price
+    credit_age_ratio = credit_score / age
+    
+    input_data = pd.DataFrame({
+        'Age': [age],
+        'Annual_Income_INR': [income],
+        'Credit_Score': [credit_score],
+        'Product_Price_INR': [product_price],
+        'Affordability': [affordability],
+        'Credit_Age_Ratio': [credit_age_ratio]
     })
-    df_scaled = scaler.transform(df)
-    pred = model.predict(df_scaled)
-    label = le.inverse_transform((pred>0.5).astype(int).flatten())
-    st.write(f"Prediction: {label[0]}")
+    
+    pred = model.predict(input_data)
+    label = le.inverse_transform(pred)
+    
+    # Optional probability
+    prob = model.predict_proba(input_data)[0]
+    st.success(f"Predicted Response: {label[0]} (Yes: {prob[1]*100:.1f}%, No: {prob[0]*100:.1f}%)")
